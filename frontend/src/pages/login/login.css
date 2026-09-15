@@ -1,6 +1,6 @@
 .login-container {
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
   background:
     radial-gradient(circle at top left, rgba(99, 102, 241, 0.32), transparent 26%),
     radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.24), transparent 30%),
@@ -76,6 +76,7 @@
   font-family: inherit;
   background: rgba(15, 23, 42, 0.68);
   color: #f8fafc;
+  min-width: 0;
 }
 
 .form-group input:hover {
@@ -164,8 +165,18 @@
 }
 
 @media (max-width: 480px) {
+  .login-container {
+    align-items: flex-start;
+    padding: 16px 12px;
+  }
+
+  .login-grid {
+    max-width: none;
+  }
+
   .login-card {
-    padding: 28px 22px;
+    padding: 26px 18px;
+    border-radius: 16px;
   }
 
   .login-card h1 {

@@ -24,13 +24,14 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  overflow: hidden;
+  min-width: 320px;
+  overflow-x: hidden;
+  overflow-y: auto;
   background-color: #0f0f1e;
 }
 
 #root {
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
   background-color: #0f0f1e;
 }
 

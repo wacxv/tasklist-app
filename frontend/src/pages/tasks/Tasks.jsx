@@ -3,18 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import './tasks.css';
 
+const getTodayDate = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+};
+
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [newTask, setNewTask] = useState('');
-  const [newDueDate, setNewDueDate] = useState('');
+  const [newDueDate, setNewDueDate] = useState(getTodayDate);
   const [sortBy, setSortBy] = useState('dueDate');
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const userId = parseInt(localStorage.getItem('userId'));
@@ -76,7 +82,7 @@ export default function Tasks() {
         userId: userId
       });
       setNewTask('');
-      setNewDueDate('');
+      setNewDueDate(getTodayDate());
       loadTasks();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create task');
@@ -153,10 +159,26 @@ export default function Tasks() {
   return (
     <div className="tasks-container">
       <div className="tasks-header">
-        <h1>📝 Task Manager</h1>
-        <div className="user-info">
+        <div className="tasks-header-main">
+          <h1><span aria-hidden="true">📝</span> Task Manager</h1>
+          <button
+            type="button"
+            className={`menu-toggle ${isMenuOpen ? 'active' : ''}`}
+            onClick={() => setIsMenuOpen(prev => !prev)}
+            aria-expanded={isMenuOpen}
+            aria-controls="account-menu"
+            aria-label={isMenuOpen ? 'Close account menu' : 'Open account menu'}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
+        <div id="account-menu" className={`user-info ${isMenuOpen ? 'open' : ''}`}>
           <span>{email}</span>
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
+          <button onClick={handleLogout} className="logout-btn">
+            Logout
+          </button>
         </div>
       </div>
 
