@@ -1,15 +1,14 @@
-# 🧪 Full-Stack Evaluator – Technical Exam
+# Full-Stack Task Manager
 
-Welcome to the technical evaluation!
+This project began as a technical assessment for a full-stack developer role. The assessment has since concluded, and I am continuing to develop it as a portfolio project that demonstrates my ability to build and improve a complete full-stack application.
 
-This monorepo contains both the **backend (.NET 9 Web API)** and **frontend (React)** projects. Your task is to build and/or fix key parts of this intentionally incomplete system. Expect quirks. Think like a dev in the wild.
+The original assessment was completed some time ago, and I did not receive a response regarding the role. Regardless of the outcome, this repository is now a practical presentation of my ongoing work with a **.NET 9 Web API** backend and a **React** frontend.
 
 ---
 
-## ⏱️ Time Limit
+## Project Status
 
-**4 to 5 hours**  
-Treat this like a timed test. Don’t overthink it. Show your best work in that window.
+This is an actively continued project rather than an active technical exam. I am using it to demonstrate full-stack development, including API design, authentication, persistence, frontend integration, error handling, and incremental improvement.
 
 ---
 
@@ -30,22 +29,16 @@ Treat this like a timed test. Don’t overthink it. Show your best work in that 
 - .NET 9 Web API
 - Entity Framework Core
 - PostgreSQL
-- Swagger docs
 
 ### Frontend
 
 - React + Axios
-- Redux Toolkit (if present)
 - Vite (dev server)
-- Styled however you like (no CSS wars)
 
 ---
 
-✅ Submission Guidelines
-- Push your code to a public GitHub repo
-- Include a short write-up in your commit messages or a NOTES.md file:
-- What you implemented
-- What’s missing (if any)
-- How to test your changes
+## Portfolio Notes
 
-Good luck. Build smart. Code loud. 💻🔥
+- The codebase started from an intentionally incomplete assessment project.
+- Features and fixes are being implemented and refined beyond the original assessment requirements.
+- `NOTES.md` documents what has been implemented, what remains, and how to test the project.
