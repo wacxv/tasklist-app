@@ -11,6 +11,7 @@ export default function Tasks() {
   const [newDueDate, setNewDueDate] = useState('');
   const [sortBy, setSortBy] = useState('dueDate');
   const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
@@ -18,6 +19,23 @@ export default function Tasks() {
 
   const userId = parseInt(localStorage.getItem('userId'));
   const email = localStorage.getItem('email');
+
+  const toLocalDateInput = (value) => {
+    if (!value) return '';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+
+    const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    return localDate.toISOString().slice(0, 10);
+  };
+
+  const toApiDueDate = (dateString) => {
+    if (!dateString) return null;
+
+    const date = new Date(`${dateString}T12:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  };
 
   useEffect(() => {
     loadTasks();
@@ -28,8 +46,8 @@ export default function Tasks() {
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     }
 
-    const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
-    const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+    const aDue = a.dueDate ? new Date(a.dueDate).setHours(0, 0, 0, 0) : Number.MAX_SAFE_INTEGER;
+    const bDue = b.dueDate ? new Date(b.dueDate).setHours(0, 0, 0, 0) : Number.MAX_SAFE_INTEGER;
     return aDue - bDue;
   });
 
@@ -54,7 +72,7 @@ export default function Tasks() {
       await api.post('/tasks', {
         title: newTask,
         isDone: false,
-        dueDate: newDueDate ? new Date(newDueDate).toISOString() : null,
+        dueDate: toApiDueDate(newDueDate),
         userId: userId
       });
       setNewTask('');
@@ -81,7 +99,7 @@ export default function Tasks() {
   const startEdit = (id, title, dueDate) => {
     setEditingId(id);
     setEditTitle(title);
-    setEditDueDate(dueDate ? new Date(dueDate).toISOString().slice(0, 10) : '');
+    setEditDueDate(toLocalDateInput(dueDate));
   };
 
   const saveEdit = async (id) => {
@@ -92,7 +110,7 @@ export default function Tasks() {
       await api.put(`/tasks/${id}`, {
         title: editTitle,
         isDone: task.isDone,
-        dueDate: editDueDate ? new Date(editDueDate).toISOString() : null
+        dueDate: toApiDueDate(editDueDate)
       });
       setEditingId(null);
       setEditTitle('');
@@ -103,14 +121,25 @@ export default function Tasks() {
     }
   };
 
-  const deleteTask = async (id) => {
-    if (!window.confirm('Delete this task?')) return;
+  const toggleTaskSelection = (id) => {
+    setSelectedTaskIds(prev => (
+      prev.includes(id) ? prev.filter(taskId => taskId !== id) : [...prev, id]
+    ));
+  };
+
+  const deleteSelectedTasks = async () => {
+    if (selectedTaskIds.length === 0) return;
+
+    const taskLabel = selectedTaskIds.length === 1 ? 'task' : 'tasks';
+    if (!window.confirm(`Delete ${selectedTaskIds.length} selected ${taskLabel}?`)) return;
 
     try {
-      await api.delete(`/tasks/${id}`);
-      loadTasks();
+      await Promise.all(selectedTaskIds.map(id => api.delete(`/tasks/${id}`)));
+      setSelectedTaskIds([]);
+      setEditingId(null);
+      await loadTasks();
     } catch (err) {
-      setError('Failed to delete task');
+      setError('Failed to delete selected tasks');
     }
   };
 
@@ -161,10 +190,21 @@ export default function Tasks() {
                 onClick={() => {
                   setIsEditMode(prev => !prev);
                   if (editingId) setEditingId(null);
+                  setSelectedTaskIds([]);
                 }}
               >
                 {isEditMode ? 'Done Editing' : 'Edit Tasks'}
               </button>
+              {isEditMode && (
+                <button
+                  type="button"
+                  className="btn-delete-selected"
+                  onClick={deleteSelectedTasks}
+                  disabled={selectedTaskIds.length === 0}
+                >
+                  Delete Selected{selectedTaskIds.length > 0 ? ` (${selectedTaskIds.length})` : ''}
+                </button>
+              )}
             </div>
           </form>
 
@@ -194,9 +234,12 @@ export default function Tasks() {
               <li key={task.id} className={`task-item ${task.isDone ? 'completed' : ''}`}>
                 <input
                   type="checkbox"
-                  checked={task.isDone}
-                  onChange={() => toggleTask(task.id, task.isDone)}
+                  checked={isEditMode ? selectedTaskIds.includes(task.id) : task.isDone}
+                  onChange={() => isEditMode
+                    ? toggleTaskSelection(task.id)
+                    : toggleTask(task.id, task.isDone)}
                   className="task-checkbox"
+                  aria-label={isEditMode ? `Select ${task.title} for deletion` : `Mark ${task.title} as complete`}
                 />
 
                 <div className="task-content">
@@ -236,10 +279,7 @@ export default function Tasks() {
 
                 <div className="task-actions">
                   {isEditMode ? (
-                    <>
-                      <button onClick={() => startEdit(task.id, task.title, task.dueDate)} className="btn-edit">Edit</button>
-                      <button onClick={() => deleteTask(task.id)} className="btn-delete">Delete</button>
-                    </>
+                    <button onClick={() => startEdit(task.id, task.title, task.dueDate)} className="btn-edit">Edit</button>
                   ) : null}
 
                   {editingId === task.id && (
