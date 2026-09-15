@@ -34,10 +34,10 @@ namespace TaskManager.API
             var email = dto.Email?.Trim().ToLower() ?? string.Empty;
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null) return Unauthorized("Invalid email or password");
+            if (user == null) return Unauthorized(new { message = "Invalid email or password" });
 
             if (!VerifyPassword(dto.Password, user.PasswordHash))
-                return Unauthorized("Invalid email or password");
+                return Unauthorized(new { message = "Invalid email or password" });
 
             var token = _jwtService.GenerateToken(user);
             return Ok(new LoginResponseDto

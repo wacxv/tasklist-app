@@ -72,7 +72,8 @@ namespace TaskManager.API
             {
                 Title = dto.Title,
                 IsDone = dto.IsDone,
-                UserId = dto.UserId
+                UserId = dto.UserId,
+                DueDate = dto.DueDate
             };
             
             _context.Tasks.Add(task);
@@ -103,6 +104,7 @@ namespace TaskManager.API
 
             task.Title = dto.Title;
             task.IsDone = dto.IsDone;
+            task.DueDate = dto.DueDate;
             await _context.SaveChangesAsync();
             
             return Ok(task);

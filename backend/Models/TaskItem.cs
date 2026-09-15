@@ -9,7 +9,8 @@ namespace TaskManager.Models
         public bool IsDone { get; set; }
         public int UserId { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        
+        public DateTime? DueDate { get; set; }
+
         [JsonIgnore]
         public User? User { get; set; }
     }

@@ -32,7 +32,13 @@ export default function Login() {
       localStorage.setItem('email', res.data.email);
       navigate('/tasks');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      const status = err.response?.status;
+      const message =
+        status === 400 || status === 401
+          ? 'Invalid email or password'
+          : err.response?.data?.message || 'Login failed. Please try again.';
+
+      setError(message);
     } finally {
       setLoading(false);
     }
