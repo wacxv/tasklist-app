@@ -1,4 +1,4 @@
-# Full-Stack Task Manager
+# tasklist-app
 
 This project began as a technical assessment for a full-stack developer role. The assessment has since concluded, and I am continuing to develop it as a portfolio project that demonstrates my ability to build and improve a complete full-stack application.
 

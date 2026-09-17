@@ -1,4 +1,4 @@
-# 🧪 React Task Evaluator Frontend
+# 🧪 TaskList Frontend
 
 ⏰ **Estimated Time**: 1-2 hours  
 🔧 **Tech Stack**:
