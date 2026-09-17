@@ -10,6 +10,7 @@ namespace TaskManager.Data
 
         public DbSet<User> Users => Set<User>();
         public DbSet<TaskItem> Tasks => Set<TaskItem>();
+        public DbSet<TaskImage> TaskImages => Set<TaskImage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -18,6 +19,16 @@ namespace TaskManager.Data
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
+
+            modelBuilder.Entity<TaskImage>()
+                .HasOne(image => image.TaskItem)
+                .WithMany(task => task.Images)
+                .HasForeignKey(image => image.TaskItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TaskImage>()
+                .Property(image => image.Data)
+                .HasColumnType("bytea");
         }
     }
 }
