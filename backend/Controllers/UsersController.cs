@@ -14,6 +14,7 @@ namespace TaskManager.API
     [ApiController]
     public class UsersController : ControllerBase
     {
+        private const long MaxProfilePictureSize = 5 * 1024 * 1024;
         private readonly ApplicationDbContext _context;
         private readonly IJwtService _jwtService;
         private readonly IPasswordValidator _passwordValidator;
@@ -141,6 +142,44 @@ namespace TaskManager.API
             user.PasswordHash = HashPassword(dto.NewPassword);
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        [Authorize]
+        [HttpPut("{id:int}/profile-picture")]
+        [RequestSizeLimit(MaxProfilePictureSize)]
+        public async Task<IActionResult> UpdateProfilePicture(int id, IFormFile image)
+        {
+            var userId = User.FindFirst("userId")?.Value;
+            if (userId != id.ToString())
+                return Forbid("You can only update your own profile picture");
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound();
+            if (image == null || image.Length == 0) return BadRequest("An image is required");
+            if (image.Length > MaxProfilePictureSize) return BadRequest("Images must be 5 MB or smaller");
+            if (!image.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                return BadRequest("Only image files are allowed");
+
+            await using var stream = new MemoryStream();
+            await image.CopyToAsync(stream);
+            user.ProfilePictureData = stream.ToArray();
+            user.ProfilePictureContentType = image.ContentType;
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        [Authorize]
+        [HttpGet("{id:int}/profile-picture")]
+        public async Task<IActionResult> GetProfilePicture(int id)
+        {
+            var userId = User.FindFirst("userId")?.Value;
+            if (userId != id.ToString()) return Forbid();
+
+            var user = await _context.Users.FindAsync(id);
+            if (user?.ProfilePictureData == null || string.IsNullOrWhiteSpace(user.ProfilePictureContentType))
+                return NotFound();
+
+            return File(user.ProfilePictureData, user.ProfilePictureContentType);
         }
 
         [Authorize]

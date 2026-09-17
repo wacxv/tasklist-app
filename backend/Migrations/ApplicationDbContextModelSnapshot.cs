@@ -108,6 +108,12 @@ namespace task_manager_api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ProfilePictureContentType")
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("ProfilePictureData")
+                        .HasColumnType("bytea");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("text");

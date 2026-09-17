@@ -38,6 +38,9 @@ export default function Tasks() {
   const [editDueDate, setEditDueDate] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
+  const [profilePictureUrl, setProfilePictureUrl] = useState('');
+  const [isUploadingPicture, setIsUploadingPicture] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -51,6 +54,19 @@ export default function Tasks() {
   const username = localStorage.getItem('username');
   const profileName = username || email?.split('@')[0] || 'User';
   const profileInitial = profileName.charAt(0).toUpperCase();
+
+  useEffect(() => {
+    const loadProfilePicture = async () => {
+      try {
+        const response = await api.get(`/users/${userId}/profile-picture`, { responseType: 'blob' });
+        setProfilePictureUrl(URL.createObjectURL(response.data));
+      } catch {
+        setProfilePictureUrl('');
+      }
+    };
+
+    if (userId) loadProfilePicture();
+  }, [userId]);
 
   const toLocalDateInput = (value) => {
     if (!value) return '';
@@ -215,6 +231,26 @@ export default function Tasks() {
     }
   };
 
+  const handleProfilePictureChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPicture(true);
+    setPasswordError('');
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      await api.put(`/users/${userId}/profile-picture`, formData);
+      const response = await api.get(`/users/${userId}/profile-picture`, { responseType: 'blob' });
+      setProfilePictureUrl(URL.createObjectURL(response.data));
+    } catch (err) {
+      setPasswordError(err.response?.data?.message || 'Could not update profile picture.');
+    } finally {
+      setIsUploadingPicture(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="tasks-container">
       <div className="tasks-header">
@@ -241,54 +277,61 @@ export default function Tasks() {
             aria-expanded={isProfileOpen}
             aria-label="Open user settings"
           >
-            <span className="profile-avatar" aria-hidden="true">{profileInitial}</span>
             <span>{email}</span>
+            {profilePictureUrl ? (
+              <img src={profilePictureUrl} alt="" className="profile-avatar profile-avatar-image" />
+            ) : (
+              <span className="profile-avatar" aria-hidden="true">{profileInitial}</span>
+            )}
           </button>
           {isProfileOpen && (
             <div className="profile-menu">
-              <div className="profile-menu-heading">
-                <strong>{username || 'User settings'}</strong>
-                <span>{email}</span>
+              <strong className="profile-menu-title">Settings</strong>
+              <div className="profile-identity">
+                <label className="profile-picture-picker" aria-label="Change profile picture">
+                  {profilePictureUrl ? (
+                    <img src={profilePictureUrl} alt="Current profile" className="profile-avatar profile-avatar-large" />
+                  ) : (
+                    <span className="profile-avatar profile-avatar-large" aria-hidden="true">{profileInitial}</span>
+                  )}
+                  <input type="file" accept="image/*" onChange={handleProfilePictureChange} disabled={isUploadingPicture} />
+                </label>
+                <div className="profile-identity-details">
+                  <strong>{username || 'Username not set'}</strong>
+                  <span>{email}</span>
+                </div>
               </div>
-              <form onSubmit={handleChangePassword} className="password-form">
-                <label>
-                  Current password
-                  <input
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    required
-                  />
-                </label>
-                <label>
-                  New password
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                  />
-                </label>
-                <label>
-                  Confirm new password
-                  <input
-                    type="password"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    required
-                  />
-                </label>
-                {passwordError && <span className="password-status error">{passwordError}</span>}
-                {passwordMessage && <span className="password-status success">{passwordMessage}</span>}
-                <button type="submit" className="btn-save-password" disabled={isSavingPassword}>
-                  {isSavingPassword ? 'Saving...' : 'Change password'}
+              {isPasswordOpen ? (
+                <form onSubmit={handleChangePassword} className="password-form">
+                  <label>
+                    Current password
+                    <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+                  </label>
+                  <label>
+                    New password
+                    <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+                  </label>
+                  <label>
+                    Confirm new password
+                    <input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} required />
+                  </label>
+                  {passwordError && <span className="password-status error">{passwordError}</span>}
+                  {passwordMessage && <span className="password-status success">{passwordMessage}</span>}
+                  <button type="submit" className="btn-save-password" disabled={isSavingPassword}>
+                    {isSavingPassword ? 'Saving...' : 'Save password'}
+                  </button>
+                </form>
+              ) : (
+                <button type="button" className="btn-change-password" onClick={() => setIsPasswordOpen(true)}>
+                  Change password
                 </button>
-              </form>
+              )}
+              {!isPasswordOpen && passwordError && <span className="password-status error">{passwordError}</span>}
+              <button type="button" onClick={handleLogout} className="logout-btn">
+                Logout
+              </button>
             </div>
           )}
-          <button onClick={handleLogout} className="logout-btn">
-            Logout
-          </button>
         </div>
       </div>
 

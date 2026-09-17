@@ -24,6 +24,10 @@ namespace TaskManager.Data
                 .HasIndex(u => u.Username)
                 .IsUnique();
 
+            modelBuilder.Entity<User>()
+                .Property(u => u.ProfilePictureData)
+                .HasColumnType("bytea");
+
             modelBuilder.Entity<TaskImage>()
                 .HasOne(image => image.TaskItem)
                 .WithMany(task => task.Images)

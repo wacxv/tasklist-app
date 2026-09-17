@@ -7,6 +7,12 @@ namespace TaskManager.Models
         public int Id { get; set; }
         public string? Username { get; set; }
         public string Email { get; set; } = string.Empty;
+
+        [JsonIgnore]
+        public byte[]? ProfilePictureData { get; set; }
+
+        [JsonIgnore]
+        public string? ProfilePictureContentType { get; set; }
         
         [JsonIgnore]
         public string PasswordHash { get; set; } = string.Empty;
