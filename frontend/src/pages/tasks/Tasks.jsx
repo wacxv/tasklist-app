@@ -8,6 +8,22 @@ const getTodayDate = () => {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 };
 
+const getDueDateStatus = (value) => {
+  if (!value) return 'none';
+
+  const dueDate = new Date(value);
+  if (Number.isNaN(dueDate.getTime())) return 'none';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  dueDate.setHours(0, 0, 0, 0);
+
+  const daysUntilDue = Math.round((dueDate - today) / (1000 * 60 * 60 * 24));
+  if (daysUntilDue < 0) return 'overdue';
+  if (daysUntilDue <= 3) return 'soon';
+  return 'upcoming';
+};
+
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -94,7 +110,8 @@ export default function Tasks() {
       const task = tasks.find(t => t.id === id);
       await api.put(`/tasks/${id}`, {
         title: task.title,
-        isDone: !isDone
+        isDone: !isDone,
+        dueDate: task.dueDate
       });
       loadTasks();
     } catch (err) {
@@ -131,6 +148,12 @@ export default function Tasks() {
     setSelectedTaskIds(prev => (
       prev.includes(id) ? prev.filter(taskId => taskId !== id) : [...prev, id]
     ));
+  };
+
+  const allTasksSelected = tasks.length > 0 && tasks.every(task => selectedTaskIds.includes(task.id));
+
+  const toggleAllTaskSelection = () => {
+    setSelectedTaskIds(allTasksSelected ? [] : tasks.map(task => task.id));
   };
 
   const deleteSelectedTasks = async () => {
@@ -217,7 +240,22 @@ export default function Tasks() {
               >
                 {isEditMode ? 'Done Editing' : 'Edit Tasks'}
               </button>
-              {isEditMode && (
+            </div>
+          </form>
+
+          <div className="task-toolbar">
+            {isEditMode && (
+              <div className="task-selection-controls">
+                <label className="select-all-control">
+                  <input
+                    type="checkbox"
+                    checked={allTasksSelected}
+                    onChange={toggleAllTaskSelection}
+                    disabled={tasks.length === 0}
+                    className="task-checkbox"
+                  />
+                  <span>Select all</span>
+                </label>
                 <button
                   type="button"
                   className="btn-delete-selected"
@@ -226,11 +264,8 @@ export default function Tasks() {
                 >
                   Delete Selected{selectedTaskIds.length > 0 ? ` (${selectedTaskIds.length})` : ''}
                 </button>
-              )}
-            </div>
-          </form>
-
-          <div className="task-toolbar">
+              </div>
+            )}
             <label className="sort-control">
               <span>Sort by:</span>
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
@@ -293,7 +328,9 @@ export default function Tasks() {
                       </div>
                       <div className="task-meta">
                         <span>Added: {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : '—'}</span>
-                        <span>Due date: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}</span>
+                        <span className={`task-meta-due due-${getDueDateStatus(task.dueDate)}`}>
+                          Due date: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
+                        </span>
                       </div>
                     </>
                   )}

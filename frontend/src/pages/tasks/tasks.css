@@ -125,8 +125,42 @@
 
 .task-toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
   margin: 10px 0 18px;
+}
+
+.task-selection-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.select-all-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #dfe7f5;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.select-all-control .task-checkbox {
+  margin: 0;
+}
+
+.task-toolbar .btn-delete-selected {
+  height: 38px;
+  min-width: 0;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.task-toolbar .sort-control {
+  margin-left: auto;
 }
 
 .date-label {
@@ -392,6 +426,24 @@
   border: 1px solid rgba(148, 163, 184, 0.12);
   border-radius: 999px;
   padding: 5px 9px;
+}
+
+.task-meta-due.due-upcoming {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #a7f3d0;
+}
+
+.task-meta-due.due-soon {
+  background: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.38);
+  color: #fde68a;
+}
+
+.task-meta-due.due-overdue {
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.38);
+  color: #fecaca;
 }
 
 .task-edit-input {
