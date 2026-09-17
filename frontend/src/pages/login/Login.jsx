@@ -4,7 +4,7 @@ import api from '../../api/axios';
 import './login.css';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -26,10 +26,11 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await api.post('/users/login', { email, password });
+      const res = await api.post('/users/login', { identifier, password });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('userId', res.data.id);
       localStorage.setItem('email', res.data.email);
+      localStorage.setItem('username', res.data.username || '');
       navigate('/tasks');
     } catch (err) {
       const status = err.response?.status;
@@ -58,13 +59,13 @@ export default function Login() {
           
           <form onSubmit={handleLogin} className="login-form">
             <div className="form-group">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="identifier">Username or email</label>
               <input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="identifier"
+                type="text"
+                placeholder="Enter your username or email"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
               />
             </div>

@@ -20,6 +20,10 @@ namespace TaskManager.Data
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
             modelBuilder.Entity<TaskImage>()
                 .HasOne(image => image.TaskItem)
                 .WithMany(task => task.Images)

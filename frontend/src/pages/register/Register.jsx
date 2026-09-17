@@ -4,6 +4,7 @@ import api from '../../api/axios';
 import './register.css';
 
 export default function Register() {
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -47,7 +48,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await api.post('/users/register', { email, password });
+      await api.post('/users/register', { username, email, password });
       
       // Redirect to login page after successful registration
       navigate('/login', { 
@@ -55,7 +56,7 @@ export default function Register() {
       });
     } catch (err) {
       if (err.response?.status === 409) {
-        setError('Email is already registered. Please login instead.');
+        setError(err.response.data.message || 'Username or email is already in use.');
       } else if (err.response?.data?.message) {
         setError(err.response.data.message);
       } else {
@@ -75,6 +76,20 @@ export default function Register() {
           {error && <div className="error-message">{error}</div>}
           
           <form onSubmit={handleRegister} className="register-form">
+            <div className="form-group">
+              <label htmlFor="username">Username</label>
+              <input
+                id="username"
+                type="text"
+                placeholder="Choose a username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                minLength="3"
+                maxLength="30"
+                required
+              />
+            </div>
+
             <div className="form-group">
               <label htmlFor="email">Email</label>
               <input

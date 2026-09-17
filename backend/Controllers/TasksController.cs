@@ -29,6 +29,7 @@ namespace TaskManager.API
             
             // Only show tasks for the authenticated user
             var tasks = await _context.Tasks
+                .Include(t => t.Images)
                 .Where(t => t.UserId == userId)
                 .ToListAsync();
             
@@ -40,7 +41,9 @@ namespace TaskManager.API
         {
             var userId = int.Parse(User.FindFirst("userId")?.Value ?? "0");
             
-            var task = await _context.Tasks.FindAsync(id);
+            var task = await _context.Tasks
+                .Include(t => t.Images)
+                .FirstOrDefaultAsync(t => t.Id == id);
             if (task == null) return NotFound();
             
             // Only owner can view their task

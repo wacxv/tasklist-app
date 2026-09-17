@@ -30,10 +30,10 @@ namespace TaskManager.API
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            // Normalize email
-            var email = dto.Email?.Trim().ToLower() ?? string.Empty;
+            var identifier = dto.Identifier?.Trim().ToLower() ?? string.Empty;
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            var user = await _context.Users.FirstOrDefaultAsync(u =>
+                u.Email == identifier || u.Username == identifier);
             if (user == null) return Unauthorized(new { message = "Invalid email or password" });
 
             if (!VerifyPassword(dto.Password, user.PasswordHash))
@@ -43,6 +43,7 @@ namespace TaskManager.API
             return Ok(new LoginResponseDto
             {
                 Id = user.Id,
+                Username = user.Username,
                 Email = user.Email,
                 Token = token
             });
@@ -93,8 +94,13 @@ namespace TaskManager.API
             if (emailExists) 
                 return Conflict(new { message = "Email is already registered. Please login instead." });
 
+            var usernameExists = await _context.Users.AnyAsync(u => u.Username == dto.Username);
+            if (usernameExists)
+                return Conflict(new { message = "Username is already taken. Please choose another." });
+
             var user = new User
             {
+                Username = dto.Username,
                 Email = dto.Email,
                 PasswordHash = HashPassword(dto.Password),
                 Role = "User"  // Default role
@@ -107,9 +113,34 @@ namespace TaskManager.API
             return CreatedAtAction(nameof(Get), new { id = user.Id }, new LoginResponseDto
             {
                 Id = user.Id,
+                Username = user.Username,
                 Email = user.Email,
                 Token = token
             });
+        }
+
+        [Authorize]
+        [HttpPut("{id:int}/password")]
+        public async Task<IActionResult> ChangePassword(int id, [FromBody] ChangePasswordDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var userId = User.FindFirst("userId")?.Value;
+            if (userId != id.ToString())
+                return Forbid("You can only change your own password");
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound();
+
+            if (!VerifyPassword(dto.CurrentPassword, user.PasswordHash))
+                return BadRequest(new { message = "Current password is incorrect" });
+
+            var (isValid, error) = _passwordValidator.ValidatePassword(dto.NewPassword);
+            if (!isValid) return BadRequest(new { message = error });
+
+            user.PasswordHash = HashPassword(dto.NewPassword);
+            await _context.SaveChangesAsync();
+            return NoContent();
         }
 
         [Authorize]

@@ -53,6 +53,39 @@ namespace task_manager_api.Migrations
                     b.ToTable("Tasks");
                 });
 
+            modelBuilder.Entity("TaskManager.Models.TaskImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TaskItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskItemId");
+
+                    b.ToTable("TaskImages");
+                });
+
             modelBuilder.Entity("TaskManager.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -60,6 +93,9 @@ namespace task_manager_api.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Username")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -81,6 +117,9 @@ namespace task_manager_api.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
+                    b.HasIndex("Username")
+                        .IsUnique();
+
                     b.ToTable("Users");
                 });
 
@@ -93,6 +132,17 @@ namespace task_manager_api.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TaskManager.Models.TaskImage", b =>
+                {
+                    b.HasOne("TaskManager.Models.TaskItem", "TaskItem")
+                        .WithMany("Images")
+                        .HasForeignKey("TaskItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TaskItem");
                 });
 
             modelBuilder.Entity("TaskManager.Models.User", b =>
