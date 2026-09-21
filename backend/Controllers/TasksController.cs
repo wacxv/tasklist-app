@@ -32,6 +32,8 @@ namespace TaskManager.API
                 .Include(t => t.Images)
                 .Where(t => t.UserId == userId)
                 .ToListAsync();
+
+            await ResetElapsedRecurringTasks(tasks);
             
             return Ok(tasks);
         }
@@ -49,8 +51,41 @@ namespace TaskManager.API
             // Only owner can view their task
             if (task.UserId != userId)
                 return Forbid("You can only view your own tasks");
+
+            await ResetElapsedRecurringTasks(new[] { task });
             
             return Ok(task);
+        }
+
+        private async Task ResetElapsedRecurringTasks(IEnumerable<TaskItem> tasks)
+        {
+            var now = DateTime.UtcNow;
+            var changed = false;
+
+            foreach (var task in tasks)
+            {
+                if (!task.IsDone || !HasRecurrenceElapsed(task, now)) continue;
+
+                task.IsDone = false;
+                task.LastResetAt = now;
+                changed = true;
+            }
+
+            if (changed)
+                await _context.SaveChangesAsync();
+        }
+
+        private static bool HasRecurrenceElapsed(TaskItem task, DateTime now)
+        {
+            var resetAt = task.LastResetAt ?? task.CreatedAt;
+
+            return task.Recurrence.Trim().ToLowerInvariant() switch
+            {
+                "daily" => now >= resetAt.AddDays(1),
+                "weekly" => now >= resetAt.AddDays(7),
+                "monthly" => now >= resetAt.AddMonths(1),
+                _ => false
+            };
         }
 
         [HttpPost("{id:int}/images")]
@@ -140,9 +175,18 @@ namespace TaskManager.API
             var userExists = await _context.Users.AnyAsync(u => u.Id == dto.UserId);
             if (!userExists) return BadRequest("User does not exist");
             
+            var normalizedRecurrence = string.Equals(dto.Recurrence, "None", StringComparison.OrdinalIgnoreCase)
+                ? "None"
+                : dto.Recurrence;
+            var isRecurring = !string.Equals(normalizedRecurrence, "None", StringComparison.OrdinalIgnoreCase);
+
             var task = new TaskItem
             {
                 Title = dto.Title,
+                Description = dto.Description ?? string.Empty,
+                Priority = string.IsNullOrWhiteSpace(dto.Priority) ? "Standard" : dto.Priority,
+                Recurrence = normalizedRecurrence,
+                LastResetAt = isRecurring ? (dto.LastResetAt ?? DateTime.UtcNow) : null,
                 IsDone = dto.IsDone,
                 UserId = dto.UserId,
                 DueDate = dto.DueDate
@@ -174,7 +218,16 @@ namespace TaskManager.API
             if (task.UserId != userId)
                 return Forbid("You can only update your own tasks");
 
+            var normalizedRecurrence = string.Equals(dto.Recurrence, "None", StringComparison.OrdinalIgnoreCase)
+                ? "None"
+                : dto.Recurrence;
+            var isRecurring = !string.Equals(normalizedRecurrence, "None", StringComparison.OrdinalIgnoreCase);
+
             task.Title = dto.Title;
+            task.Description = dto.Description ?? string.Empty;
+            task.Priority = string.IsNullOrWhiteSpace(dto.Priority) ? "Standard" : dto.Priority;
+            task.Recurrence = normalizedRecurrence;
+            task.LastResetAt = isRecurring ? (dto.LastResetAt ?? task.LastResetAt ?? DateTime.UtcNow) : null;
             task.IsDone = dto.IsDone;
             task.DueDate = dto.DueDate;
             await _context.SaveChangesAsync();
