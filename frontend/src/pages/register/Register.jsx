@@ -32,6 +32,11 @@ export default function Register() {
     e.preventDefault();
     setError('');
 
+    if (!/^[a-zA-Z0-9]+$/.test(username)) {
+      setError('Username must contain only letters and numbers with no spaces or special characters');
+      return;
+    }
+
     // Validate password match
     if (password !== confirmPassword) {
       setError("Passwords don't match");
@@ -83,9 +88,16 @@ export default function Register() {
                 type="text"
                 placeholder="Choose a username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                  if (/^[a-zA-Z0-9]*$/.test(e.target.value)) {
+                    setUsername(e.target.value);
+                  } else {
+                    setError('Username cannot contain spaces or special characters');
+                  }
+                }}
                 minLength="3"
                 maxLength="30"
+                pattern="[a-zA-Z0-9]+"
                 required
               />
             </div>
