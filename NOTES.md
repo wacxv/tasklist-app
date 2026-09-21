@@ -1,199 +1,105 @@
-# Full-Stack Task Manager - Implementation Notes
+# TaskList Development Notes
 
 ## Overview
-A full-stack task management application with user authentication and CRUD operations, featuring a modern dark mode UI.
 
-## What Was Implemented
+TaskList is a React/Vite frontend backed by an ASP.NET Core .NET 9 API and PostgreSQL. The API owns authentication, task persistence, recurrence resets, and profile-picture storage.
 
-### Frontend (React + Vite)
-✅ **Authentication System**
-- User registration with comprehensive password validation
-- Login with JWT authentication
-- Protected routes with authorization
-- Success/error message handling
-- Logout functionality
+## Local Ports
 
-✅ **Task Management Interface**
-- Create, read, update, delete tasks
-- Toggle task completion status
-- Inline task editing
-- User-specific task filtering
-- Real-time loading and error states
-- Empty state handling
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:5215`
+- Swagger: `http://localhost:5215/swagger`
+- PostgreSQL: `localhost:5432`
 
-✅ **UI/UX**
-- Dark mode theme with consistent design system
-- Responsive layout for mobile/desktop
-- Smooth animations and transitions
-- Form validation with user feedback
-- Confirmation dialogs for destructive actions
+## Start the Application
 
-### Backend (ASP.NET Core + PostgreSQL)
-✅ **User Management**
-- User registration with email uniqueness validation
-- Password validation (8+ chars, uppercase, lowercase, digit, special character)
-- Secure password hashing (SHA256)
-- JWT token generation and validation
-- Role-based authorization (User/Admin)
-- Email normalization (lowercase, trim)
+Terminal 1:
 
-✅ **Task Management API**
-- RESTful CRUD endpoints for tasks
-- User-specific task filtering
-- Task ownership validation
-- Automatic timestamp tracking
-
-✅ **Security**
-- JWT authentication middleware
-- Authorization attributes on protected endpoints
-- CORS configuration
-- Password hashing
-- Role-based access control
-
-## Technical Stack
-
-**Frontend:**
-- React 18
-- Vite
-- React Router v6
-- Axios
-- Custom CSS (Grid/Flexbox)
-
-**Backend:**
-- ASP.NET Core 9
-- Entity Framework Core
-- PostgreSQL
-- JWT Bearer Authentication
-
-## How to Run
-
-### Prerequisites
-```bash
-# Required Software
-- Node.js (v18+)
-- .NET SDK 9.0
-- PostgreSQL 15+
-```
-
-### Backend Setup
 ```bash
 cd backend
-
-# Update database connection string in appsettings.json
-# "DefaultConnection": "Host=localhost;Database=taskmanager;Username=postgres;Password=yourpassword"
-
 dotnet restore
 dotnet ef database update
-dotnet run
-# Backend runs on http://localhost:5267
+dotnet run --launch-profile http
 ```
 
-### Frontend Setup
+Terminal 2:
+
 ```bash
 cd frontend
-
 npm install
 npm run dev
-# Frontend runs on http://localhost:5173
 ```
 
-## Testing Instructions
+For phone access, set `frontend/.env` to the computer's LAN API address and open the Vite LAN URL from a phone on the same network.
 
-### 1. User Registration
-- Navigate to http://localhost:5173/register
-- Email: `test@example.com`
-- Password: `Test123!` (must meet requirements)
-- Confirm password: `Test123!`
-- Click "Register"
-- Should redirect to login with success message
+## Current Feature Checklist
 
-### 2. Duplicate Email Validation
-- Try registering with same email again
-- Should show error: "Email is already registered. Please login instead."
+### Authentication
 
-### 3. Invalid Password Registration
-- Try password without uppercase: `test123!`
-- Should show error: "Password must contain at least one uppercase letter"
-- Try password without special char: `Test1234`
-- Should show error: "Password must contain at least one special character"
+- Registration requires username, email, password, and confirmation.
+- Passwords must be 8–128 characters and include uppercase, lowercase, digit, and special characters.
+- Login accepts username or email through the `identifier` field.
+- JWT tokens last 60 minutes by default.
+- Protected frontend requests redirect to login after a `401` response.
 
-### 4. User Login
-- Navigate to http://localhost:5173/login
-- Enter registered email and password
-- Click "Login"
-- Should redirect to /tasks page
+### Tasks
 
-### 5. Task Management
-- Create task: Enter text and click "Add Task"
-- Edit task: Click "Edit", modify text, click "Save"
-- Toggle completion: Click checkbox
-- Delete task: Click "Delete", confirm dialog
-- Refresh: Click "Refresh" button
+- Create, edit, complete, and delete tasks.
+- Select and bulk-delete tasks in Edit Tasks mode.
+- Store title, description, priority, recurrence, due date, completion state, and timestamps.
+- Completed tasks appear after incomplete tasks.
+- Sort by due date or date added.
+- Filter by priority and recurrence.
+- Display completed count and due-date status.
 
-### 6. Protected Routes
-- Logout from tasks page
-- Try accessing http://localhost:5173/tasks directly
-- Should redirect to /login
+### Recurrence
 
-### 7. Error Handling
-- Stop backend server
-- Try creating a task
-- Should show error banner
-- Click X to dismiss error
+- Daily tasks reset after one day.
+- Weekly tasks reset after seven days.
+- Monthly tasks reset after one calendar month.
+- Reset processing runs when tasks are fetched and only reopens completed tasks.
+- `LastResetAt` records the most recent reset.
+- Occasional and Additional are currently informational recurrence values and do not reset automatically.
 
-## API Endpoints
+### Profile Settings
 
-### User Endpoints
-```
-POST /users/register
-Body: { "email": "test@example.com", "password": "Test123!" }
+- Profile picture upload supports drag-and-drop and file browsing.
+- The upload flow opens a full-screen centered dialog, followed by a square crop dialog.
+- Crop supports pointer dragging, mouse-wheel zoom, a zoom slider, and plus/minus buttons.
+- Password changes include a Cancel path that returns to Settings.
 
-POST /users/login
-Body: { "email": "test@example.com", "password": "Test123!" }
+## Manual Smoke Test
 
-GET /users (Admin only)
-Authorization: Bearer {token}
+1. Register a user with a valid password.
+2. Confirm duplicate email and username validation.
+3. Log in with both username and email.
+4. Create tasks using each priority and recurrence option.
+5. Edit a task and verify description, due date, priority, and recurrence persist.
+6. Complete a recurring task, move its `LastResetAt` into the past in PostgreSQL, refresh, and verify it reopens.
+7. Verify completed tasks sort below incomplete tasks.
+8. Test filters, sorting, completed count, and bulk deletion.
+9. Upload a profile image, drag/drop or browse, crop it square, zoom, drag it, and confirm.
+10. Change the password and test Cancel.
+11. Log out and confirm `/tasks` redirects to login.
 
-GET /users/{id}
-Authorization: Bearer {token}
+To simulate an elapsed daily recurrence:
 
-DELETE /users/{id}
-Authorization: Bearer {token}
+```sql
+UPDATE "Tasks"
+SET "LastResetAt" = NOW() - INTERVAL '2 days',
+    "IsDone" = TRUE
+WHERE "Id" = YOUR_TASK_ID;
 ```
 
-### Task Endpoints
-```
-GET /tasks
-Authorization: Bearer {token}
+## Validation Commands
 
-POST /tasks
-Authorization: Bearer {token}
-Body: { "title": "My Task", "isDone": false, "userId": 1 }
+```bash
+cd backend
+dotnet build
 
-PUT /tasks/{id}
-Authorization: Bearer {token}
-Body: { "title": "Updated Task", "isDone": true }
-
-DELETE /tasks/{id}
-Authorization: Bearer {token}
+cd ../frontend
+npm run lint
+npm run build
 ```
 
-## Design Decisions
-
-**Dark Mode Theme:** Chosen for modern aesthetic and reduced eye strain, aligning with current design trends in developer tools.
-
-**JWT Authentication:** Stateless authentication approach enables scalability and works seamlessly with React SPA architecture.
-
-**Password Validation:** Comprehensive client-side and server-side validation ensures strong password requirements are met.
-
-**User-Specific Tasks:** Tasks are filtered by userId to ensure data isolation and privacy between users.
-
-**Inline Editing:** Task editing is done inline without navigation to improve user experience and reduce clicks.
-
-## Notes
-
-- All tasks are associated with the authenticated user
-- JWT tokens expire after 24 hours
-- Passwords are hashed using SHA256 before storage
-- The application includes comprehensive error handling
-- CORS is configured for local development
+There is currently no automated test project.
