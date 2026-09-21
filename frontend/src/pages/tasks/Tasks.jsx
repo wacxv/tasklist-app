@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import './tasks.css';
@@ -73,6 +74,10 @@ export default function Tasks() {
   const [cropOffsetX, setCropOffsetX] = useState(0);
   const [cropOffsetY, setCropOffsetY] = useState(0);
   const [isCropOpen, setIsCropOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const uploadInputRef = useRef(null);
+  const cropDragRef = useRef(null);
+  const cropStageRef = useRef(null);
 
   const navigate = useNavigate();
   const userId = Number(localStorage.getItem('userId') ?? 0);
@@ -98,6 +103,10 @@ export default function Tasks() {
     setIsCropOpen(false);
   };
 
+  const closeUploadDialog = () => {
+    setIsUploadOpen(false);
+  };
+
   useEffect(() => {
     const loadProfilePicture = async () => {
       if (!userId) return;
@@ -117,12 +126,14 @@ export default function Tasks() {
     const handleClickOutside = (event) => {
       const trigger = document.querySelector('.profile-trigger');
       const menu = document.querySelector('.profile-menu');
+      const uploadDialog = document.querySelector('.profile-upload-modal');
       const toggle = document.querySelector('.menu-toggle');
       const clickedInsideMenu = menu && menu.contains(event.target);
+      const clickedInsideUploadDialog = uploadDialog && uploadDialog.contains(event.target);
       const clickedInsideTrigger = trigger && trigger.contains(event.target);
       const clickedInsideToggle = toggle && toggle.contains(event.target);
 
-      if (!clickedInsideMenu && !clickedInsideTrigger && !clickedInsideToggle && (isProfileOpen || isMenuOpen)) {
+      if (!clickedInsideMenu && !clickedInsideUploadDialog && !clickedInsideTrigger && !clickedInsideToggle && (isProfileOpen || isMenuOpen)) {
         setIsProfileOpen(false);
         setIsMenuOpen(false);
         if (isPasswordOpen && !isCropOpen) closePasswordForm();
@@ -134,6 +145,11 @@ export default function Tasks() {
 
       if (isCropOpen) {
         cancelProfileCrop();
+        return;
+      }
+
+      if (isUploadOpen) {
+        closeUploadDialog();
         return;
       }
 
@@ -155,7 +171,7 @@ export default function Tasks() {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEsc);
     };
-  }, [isProfileOpen, isMenuOpen, isPasswordOpen, isCropOpen]);
+  }, [isProfileOpen, isMenuOpen, isPasswordOpen, isCropOpen, isUploadOpen]);
 
   const toLocalDateInput = (value) => {
     if (!value) return '';
@@ -381,6 +397,7 @@ export default function Tasks() {
 
     setIsUploadingPicture(true);
     setPasswordError('');
+    closeUploadDialog();
     openCropEditor(file);
     event.target.value = '';
     setIsUploadingPicture(false);
@@ -389,7 +406,46 @@ export default function Tasks() {
   const handleDrop = (event) => {
     event.preventDefault();
     const file = event.dataTransfer?.files?.[0];
-    if (file) openCropEditor(file);
+    if (!file) return;
+
+    closeUploadDialog();
+    openCropEditor(file);
+  };
+
+  const handleCropPointerDown = (event) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    cropDragRef.current = {
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      offsetX: cropOffsetX,
+      offsetY: cropOffsetY,
+    };
+  };
+
+  const handleCropPointerMove = (event) => {
+    if (!cropDragRef.current) return;
+
+    event.preventDefault();
+
+    const drag = cropDragRef.current;
+    setCropOffsetX(drag.offsetX + event.clientX - drag.pointerX);
+    setCropOffsetY(drag.offsetY + event.clientY - drag.pointerY);
+  };
+
+  const handleCropPointerUp = (event) => {
+    cropDragRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  };
+
+  const handleCropWheel = (event) => {
+    event.preventDefault();
+    const zoomChange = event.deltaY < 0 ? 0.15 : -0.15;
+    setCropScale((currentScale) => Math.min(100, Math.max(1, currentScale + zoomChange)));
+  };
+
+  const adjustCropScale = (amount) => {
+    setCropScale((currentScale) => Math.min(100, Math.max(1, currentScale + amount)));
   };
 
   const applyCroppedProfile = async () => {
@@ -399,9 +455,20 @@ export default function Tasks() {
     image.onload = async () => {
       const canvas = document.createElement('canvas');
       const size = 256;
-      const cropSize = Math.min(image.width, image.height);
-      const offsetX = (image.width - cropSize) / 2 + cropOffsetX / cropScale;
-      const offsetY = (image.height - cropSize) / 2 + cropOffsetY / cropScale;
+      const sourceCropSize = Math.min(image.width, image.height);
+      const stageSize = cropStageRef.current?.clientWidth || 520;
+      const baseScale = stageSize / sourceCropSize;
+      const visibleCropSize = sourceCropSize / cropScale;
+      const centerX = image.width / 2 - cropOffsetX / (baseScale * cropScale);
+      const centerY = image.height / 2 - cropOffsetY / (baseScale * cropScale);
+      const offsetX = Math.max(0, Math.min(
+        image.width - visibleCropSize,
+        centerX - visibleCropSize / 2,
+      ));
+      const offsetY = Math.max(0, Math.min(
+        image.height - visibleCropSize,
+        centerY - visibleCropSize / 2,
+      ));
 
       canvas.width = size;
       canvas.height = size;
@@ -413,7 +480,7 @@ export default function Tasks() {
       }
 
       context.clearRect(0, 0, size, size);
-      context.drawImage(image, offsetX, offsetY, cropSize, cropSize, 0, 0, size, size);
+      context.drawImage(image, offsetX, offsetY, visibleCropSize, visibleCropSize, 0, 0, size, size);
 
       canvas.toBlob(async (blob) => {
         if (!blob) return;
@@ -435,6 +502,89 @@ export default function Tasks() {
     };
     image.src = cropImage;
   };
+
+  const uploadModal = isUploadOpen ? createPortal(
+    <div className="profile-picture-modal profile-upload-modal" role="dialog" aria-modal="true" aria-labelledby="profile-upload-title">
+      <div className="profile-picture-modal-card">
+        <div className="profile-picture-modal-header">
+          <strong id="profile-upload-title">Upload your file</strong>
+          <button type="button" className="profile-modal-close" onClick={closeUploadDialog} aria-label="Close upload dialog">×</button>
+        </div>
+        <div
+          className="profile-dropzone"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={handleDrop}
+        >
+          <span className="profile-dropzone-icon" aria-hidden="true">▧</span>
+          <strong>Drag &amp; drop</strong>
+          <span>or</span>
+          <button type="button" className="btn-browse-picture" onClick={() => uploadInputRef.current?.click()}>
+            Browse files
+          </button>
+          <small>Supports JPEG, JPG, PNG</small>
+          <input
+            ref={uploadInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleProfilePictureChange}
+            disabled={isUploadingPicture}
+            className="profile-upload-input"
+          />
+        </div>
+        <button type="button" className="btn-cancel-password" onClick={closeUploadDialog}>Cancel</button>
+      </div>
+    </div>,
+    document.body,
+  ) : null;
+
+  const cropModal = isCropOpen ? createPortal(
+    <div className="profile-picture-modal crop-modal" role="dialog" aria-modal="true" aria-labelledby="crop-profile-title">
+      <div className="profile-picture-modal-card crop-panel">
+        <div className="crop-panel-header">
+          <strong id="crop-profile-title">Crop profile picture</strong>
+          <button type="button" className="profile-modal-close" onClick={cancelProfileCrop} aria-label="Close crop dialog">×</button>
+        </div>
+        <div
+          ref={cropStageRef}
+          className="crop-stage"
+          onPointerDown={handleCropPointerDown}
+          onPointerMove={handleCropPointerMove}
+          onPointerUp={handleCropPointerUp}
+          onPointerCancel={handleCropPointerUp}
+          onWheel={handleCropWheel}
+        >
+          <img
+            src={cropImage}
+            alt="Crop preview"
+            className="crop-preview-image"
+            style={{ transform: `translate(${cropOffsetX}px, ${cropOffsetY}px) scale(${cropScale})` }}
+          />
+        </div>
+        <div className="crop-controls">
+          <label>
+            Zoom
+            <div className="crop-zoom-control">
+              <button type="button" className="crop-zoom-button" onClick={() => adjustCropScale(-0.25)} aria-label="Zoom out">−</button>
+              <input
+                type="range"
+                min="1"
+                max="100"
+                step="0.05"
+                value={cropScale}
+                onChange={(event) => setCropScale(Number(event.target.value))}
+              />
+              <button type="button" className="crop-zoom-button" onClick={() => adjustCropScale(0.25)} aria-label="Zoom in">+</button>
+            </div>
+          </label>
+        </div>
+        <div className="crop-actions">
+          <button type="button" className="btn-cancel" onClick={cancelProfileCrop}>Cancel</button>
+          <button type="button" className="btn-save" onClick={applyCroppedProfile}>Confirm</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  ) : null;
 
   return (
     <div className="tasks-container">
@@ -474,67 +624,29 @@ export default function Tasks() {
           </button>
 
           {isProfileOpen && (
-            <div className="profile-menu" onDragOver={(event) => event.preventDefault()} onDrop={handleDrop}>
+            <div className="profile-menu">
               <strong className="profile-menu-title">Settings</strong>
 
-              {isCropOpen ? (
-                <div className="crop-panel">
-                  <div className="crop-panel-header">
-                    <strong>Crop profile picture</strong>
-                  </div>
-                  <div className="crop-stage">
-                    <img
-                      src={cropImage}
-                      alt="Crop preview"
-                      className="crop-preview-image"
-                      style={{ transform: `scale(${cropScale}) translate(${cropOffsetX}px, ${cropOffsetY}px)` }}
-                    />
-                  </div>
-                  <div className="crop-controls">
-                    <label>
-                      Zoom
-                      <input
-                        type="range"
-                        min="1"
-                        max="2.5"
-                        step="0.05"
-                        value={cropScale}
-                        onChange={(event) => setCropScale(Number(event.target.value))}
-                      />
-                    </label>
-                    <div className="crop-position-row">
-                      <button type="button" onClick={() => setCropOffsetX((prev) => prev - 10)}>◀</button>
-                      <button type="button" onClick={() => setCropOffsetX((prev) => prev + 10)}>▶</button>
-                      <button type="button" onClick={() => setCropOffsetY((prev) => prev - 10)}>▲</button>
-                      <button type="button" onClick={() => setCropOffsetY((prev) => prev + 10)}>▼</button>
-                    </div>
-                  </div>
-                  <div className="crop-actions">
-                    <button type="button" className="btn-cancel" onClick={cancelProfileCrop}>Cancel</button>
-                    <button type="button" className="btn-save" onClick={applyCroppedProfile}>Confirm</button>
-                  </div>
-                </div>
-              ) : (
+              {!isCropOpen && (
                 <>
                   <div className="profile-identity">
-                    <label className="profile-picture-picker" aria-label="Change profile picture">
+                    <button
+                      type="button"
+                      className="profile-picture-picker"
+                      aria-label="Change profile picture"
+                      onClick={() => setIsUploadOpen(true)}
+                    >
                       {profilePictureUrl ? (
                         <img src={profilePictureUrl} alt="Current profile" className="profile-avatar profile-avatar-large" />
                       ) : (
                         <span className="profile-avatar profile-avatar-large" aria-hidden="true">{profileInitial}</span>
                       )}
-                      <input type="file" accept="image/*" onChange={handleProfilePictureChange} disabled={isUploadingPicture} />
-                    </label>
+                    </button>
                     <div className="profile-identity-details">
                       <strong>{username || 'Username not set'}</strong>
                       <span>{email}</span>
                     </div>
                   </div>
-
-                  <div className="profile-upload-hint">
-                    <span>Drag &amp; drop a photo here or click the avatar to choose a file.</span>
-                  </div>
-
                   {isPasswordOpen ? (
                     <form onSubmit={handleChangePassword} className="password-form">
                       <label>
@@ -572,6 +684,9 @@ export default function Tasks() {
           )}
         </div>
       </div>
+
+      {uploadModal}
+      {cropModal}
 
       <div className="tasks-grid">
         <div className="tasks-card">
@@ -812,7 +927,9 @@ export default function Tasks() {
                 </div>
 
                 <div className="task-actions">
-                  {isEditMode ? <button onClick={() => startEdit(task)} className="btn-edit">Edit</button> : null}
+                  {isEditMode && editingId !== task.id ? (
+                    <button onClick={() => startEdit(task)} className="btn-edit">Edit</button>
+                  ) : null}
 
                   {editingId === task.id && (
                     <>
